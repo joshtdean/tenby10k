@@ -390,7 +390,7 @@ function renderLog(){
       <div class="rm" data-${r.kind==='plan'?'open':'extra'}="${r.id}" role="button" tabindex="0"><strong>${esc(r.title)}</strong><span><i class="dot"></i>${r.kind==='plan'?'Plan':'Extra'}${r.km?' · '+km1(r.km)+' km':''}</span></div>
       <span class="val num">${r.time?esc(r.time):''}</span></div>`).join(''):'<div class="empty">No runs logged yet.<br>Tick off a session in Plan, or add an extra run.</div>'}</div></div>
     <button class="btn soft" type="button" data-add>Log an extra run</button>
-    <p class="foot" id="sync">${syncMsg}</p>`;
+    <p class="foot" id="sync">${syncMsg}</p><p class="foot">Version 3 · haptics</p>`;
 }
 
 function renderRace(){
