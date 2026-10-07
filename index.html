@@ -464,10 +464,24 @@ function extraSheet(id){
       <button class="btn" type="submit">Save run</button></form>`,'var(--accent)');
 }
 
+/* ---------- haptics ---------- */
+// Android: Vibration API. iOS 18+ Safari has no Vibration API, but toggling a native
+// switch checkbox plays the system haptic, so we click a hidden one inside the tap.
+function haptic(){
+  try{
+    if(navigator.vibrate&&navigator.vibrate(12))return;
+    const l=document.createElement('label');l.className='haptic-sw';l.setAttribute('aria-hidden','true');
+    l.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden';
+    const i=document.createElement('input');i.type='checkbox';i.setAttribute('switch','');i.tabIndex=-1;
+    l.appendChild(i);document.body.appendChild(l);l.click();l.remove();
+  }catch(_){}
+}
 /* ---------- events ---------- */
 function go(t){tab=t;try{localStorage.setItem('tenby10k.tab',t);}catch(_){}render();window.scrollTo(0,0);}
 document.addEventListener('click',e=>{
   const t=e.target;let el;
+  if(t.closest('.haptic-sw'))return;
+  if(t.closest('button,[data-open],[data-day],.feel label'))haptic();
   if(t.closest('[data-close]'))return closeSheet();
   if(el=t.closest('[data-tab]'))return go(el.dataset.tab);
   if(el=t.closest('[data-check]')){const id=el.dataset.check;if(state.done[id])return sessionSheet(id);state.done[id]={at:new Date().toISOString(),time:'',feel:'',note:''};return commit();}
