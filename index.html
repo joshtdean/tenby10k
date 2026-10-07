@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tenby 10K">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<title>Tenby 10K Tracker</title>
+
+<style>
+/* Layout: iOS-style app shell — one screen per tab (Home, Plan, Log, Race), large titles, inset grouped lists, fixed bottom tab bar; session detail in a bottom sheet. */
+:root{
+  --bg:#F2F2F7; --surface:#FFFFFF; --sunk:#F2F2F7; --ink:#111417; --muted:#8A8F98; --line:#E5E5EA;
+  --accent:#FF5A3C; --hero-bg:#111417; --hero-fg:#FFFFFF; --hero-mute:rgba(255,255,255,.6); --hero-track:rgba(255,255,255,.14);
+  --bar:rgba(249,249,251,.86);
+  --easy:#34A853; --int:#FF5A3C; --tempo:#F2A20C; --long:#7C5CE0; --race:#E5284A;
+  --scrim:rgba(0,0,0,.35);
+  --sf:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",system-ui,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#000000; --surface:#1C1C1E; --sunk:#2C2C2E; --ink:#F5F5F7; --muted:#8E8E93; --line:#2C2C2E;
+  --accent:#FF6A4D; --hero-bg:#1C1C1E; --hero-track:rgba(255,255,255,.12); --bar:rgba(22,22,24,.86);
+  --easy:#4CD964; --int:#FF6A4D; --tempo:#FFB830; --long:#9E86FF; --race:#FF4F6D; --scrim:rgba(0,0,0,.6); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#000000; --surface:#1C1C1E; --sunk:#2C2C2E; --ink:#F5F5F7; --muted:#8E8E93; --line:#2C2C2E;
+  --accent:#FF6A4D; --hero-bg:#1C1C1E; --hero-track:rgba(255,255,255,.12); --bar:rgba(22,22,24,.86);
+  --easy:#4CD964; --int:#FF6A4D; --tempo:#FFB830; --long:#9E86FF; --race:#FF4F6D; --scrim:rgba(0,0,0,.6); color-scheme:dark}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--sf);font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+button,input{font:inherit;color:inherit;letter-spacing:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:8px calc(100px + env(safe-area-inset-bottom,0px))}
+.screen{display:flex;flex-direction:column;gap:22px}
+.title{display:flex;flex-direction:column;gap:2px;padding:8px 4px 0}
+.title small{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
+.title h1{margin:0;font-size:34px;font-weight:700;letter-spacing:-.025em;line-height:1.1}
+.sec{display:flex;flex-direction:column;gap:8px}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;padding:0 4px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;font-weight:500}
+.card{background:var(--surface);border-radius:18px}
+.muted{color:var(--muted)}
+
+/* Home: countdown */
+.count{background:var(--hero-bg);color:var(--hero-fg);border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.count-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.count-n{display:flex;align-items:baseline;gap:8px}
+.count-n b{font-size:64px;font-weight:700;letter-spacing:-.04em;line-height:.9}
+.count-n span{font-size:17px;color:var(--hero-mute);font-weight:500}
+.count-top p{margin:0;text-align:right;font-size:13px;color:var(--hero-mute);line-height:1.35}
+.count-top p strong{display:block;color:var(--hero-fg);font-size:15px;font-weight:600}
+.prog{display:flex;flex-direction:column;gap:8px}
+.prog-bar{height:6px;border-radius:3px;background:var(--hero-track);overflow:hidden}
+.prog-bar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .5s ease}
+.prog-l{display:flex;justify-content:space-between;font-size:13px;color:var(--hero-mute)}
+
+/* Home: up next */
+.next{display:flex;flex-direction:column;gap:12px;padding:18px;border:0;text-align:left;width:100%}
+.pill{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--c)}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+.next .h{display:block;font-size:26px;font-weight:700;letter-spacing:-.025em;line-height:1.1}
+.next .meta{font-size:15px;color:var(--muted)}
+.flow{display:flex;flex-wrap:wrap;gap:6px}
+.flow span{font-size:13px;font-weight:500;background:var(--sunk);border-radius:8px;padding:5px 9px}
+.flow span.k{background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--c)}
+.next-go{display:flex;align-items:center;justify-content:center;background:var(--ink);color:var(--bg);border-radius:12px;padding:12px;font-weight:600;font-size:15px}
+
+/* Home: calendar picker (sticky) */
+.cal{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;margin:-8px -16px 0;padding:10px 16px 12px;background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.cal-h{display:grid;grid-template-columns:36px 1fr 36px;align-items:center}
+.cal-t{display:flex;flex-direction:column;align-items:center;line-height:1.2}
+.cal-t strong{font-size:17px;font-weight:600}
+.cal-t small{font-size:13px;color:var(--muted)}
+.nav-b{width:36px;height:36px;border-radius:50%;border:0;background:var(--surface);display:grid;place-items:center;padding:0}
+.nav-b svg{width:12px;height:12px;fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-b:disabled{opacity:.35;cursor:default}
+.strip{display:grid;grid-template-columns:repeat(7,1fr)}
+.sd{display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:none;padding:0;color:var(--ink)}
+.sd small{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
+.sd b{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:17px;font-weight:600;transition:background .15s}
+.sd.today b{color:var(--accent)}
+.sd.sel b{background:var(--ink);color:var(--bg)}
+.sd i{height:7px;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:10px;line-height:1;color:var(--c)}
+.sd.has i::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c)}
+.sd.done i::before{display:none}
+.rest{padding:18px;display:flex;flex-direction:column;gap:4px}
+.rest strong{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.rest>span{color:var(--muted);font-size:15px}
+.rest-next{margin-top:12px;display:flex;align-items:center;gap:8px;border:0;background:var(--sunk);border-radius:12px;padding:12px 14px;font-size:15px;font-weight:500;text-align:left}
+.rest-next span{margin-left:auto;color:var(--muted);font-size:20px;line-height:1}
+
+/* Lists */
+.list{background:var(--surface);border-radius:14px;overflow:hidden}
+.row{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:12px;padding:11px 14px;min-height:60px}
+.row+.row{box-shadow:inset 66px 0 0 var(--surface),inset 0 1px 0 var(--line)}
+.date{display:flex;flex-direction:column;align-items:center;line-height:1.05;cursor:pointer}
+.date small{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase}
+.date b{font-size:20px;font-weight:600}
+.row.today .date b{color:var(--c)}
+.rm{min-width:0;cursor:pointer}
+.rm strong{display:block;font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rm span{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
+.row.done .rm strong{color:var(--muted)}
+.check{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);background:transparent;display:grid;place-items:center;padding:0}
+.check svg{width:14px;height:14px;fill:none;stroke:transparent;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.row.done .check{background:var(--c);border-color:var(--c)}
+.row.done .check svg{stroke:#fff}
+.miss{color:var(--race);font-style:normal}
+.val{font-size:15px;color:var(--muted);font-weight:500}
+
+/* Log */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--surface);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.stat b{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.stat small{font-size:12px;color:var(--muted)}
+.empty{padding:22px 18px;text-align:center;color:var(--muted);font-size:15px}
+.btn{border:0;border-radius:14px;padding:14px;font-weight:600;font-size:16px;background:var(--ink);color:var(--bg);width:100%}
+.btn.c{background:var(--c);color:#fff}
+.btn.soft{background:var(--surface);color:var(--accent)}
+.btn.ghost{background:transparent;color:var(--muted);font-weight:500;font-size:15px;padding:8px}
+
+/* Race */
+.race-hero{background:var(--hero-bg);color:var(--hero-fg);border-radius:22px;padding:22px;display:flex;flex-direction:column;gap:18px}
+.race-hero h2{margin:0;font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.race-hero p{margin:4px 0 0;color:var(--hero-mute);font-size:15px}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hero-track);border-radius:14px;overflow:hidden}
+.kv div{background:var(--hero-bg);padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kv small{font-size:12px;color:var(--hero-mute)}
+.kv b{font-size:20px;font-weight:600;letter-spacing:-.02em}
+.splits{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line)}
+.splits div{background:var(--surface);padding:10px 2px;text-align:center;line-height:1.25}
+.splits small{display:block;font-size:11px;color:var(--muted);font-weight:600}
+.splits b{font-size:15px;font-weight:600}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--line);border-radius:10px;padding:2px}
+.seg button{border:0;background:transparent;border-radius:8px;padding:7px 6px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tips{margin:0;padding:6px 0;list-style:none}
+.tips li{padding:10px 16px;font-size:15px}
+.tips li+li{border-top:1px solid var(--line)}
+
+/* Tab bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
+.tabs{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.tab{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0;color:var(--muted);font-size:10.5px;font-weight:500}
+.tab svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-current="page"]{color:var(--accent)}
+.tab[aria-current="page"] svg{stroke-width:2.2}
+
+/* Sheet */
+.sheet-wrap{position:fixed;inset:0;z-index:60;visibility:hidden}
+.sheet-wrap.open{visibility:visible}
+.scrim{position:absolute;inset:0;background:var(--scrim);opacity:0;transition:opacity .25s}
+.open .scrim{opacity:1}
+.sheet{position:absolute;left:0;right:0;bottom:0;margin:0 auto;max-width:520px;max-height:92%;overflow-y:auto;overscroll-behavior:contain;background:var(--bg);border-radius:14px 14px 0 0;padding:8px 16px calc(24px + env(safe-area-inset-bottom,0px));transform:translateY(100%);transition:transform .34s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;gap:18px}
+.open .sheet{transform:none}
+@media (prefers-reduced-motion:reduce){.sheet,.scrim,.prog-bar i{transition:none}}
+.grab{width:36px;height:5px;border-radius:3px;background:var(--line);margin:0 auto}
+.sh-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:0 4px}
+.sh-top h2{margin:6px 0 2px;font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.sh-top p{margin:0;color:var(--muted);font-size:15px}
+.x{flex:none;width:30px;height:30px;border-radius:50%;border:0;background:var(--line);display:grid;place-items:center;padding:0}
+.x svg{width:11px;height:11px;stroke:var(--muted);stroke-width:2.6;stroke-linecap:round}
+.ph{padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.ph+.ph{border-top:1px solid var(--line)}
+.ph-n{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.ph.k .ph-n{color:var(--c)}
+.it strong{font-weight:600}
+.it small{display:block;color:var(--muted);font-size:14px}
+.it.rest strong{font-weight:500;color:var(--muted)}
+.tip{margin:0;padding:14px 16px;font-size:15px;color:var(--muted)}
+.form{display:flex;flex-direction:column;gap:10px}
+.inp{display:grid;grid-template-columns:110px 1fr;align-items:center;padding:0 16px;min-height:48px}
+.inp+.inp{border-top:1px solid var(--line)}
+.inp label{font-size:16px}
+.inp input{border:0;background:transparent;text-align:right;font-size:16px;padding:12px 0;width:100%;min-width:0}
+.inp input:focus{outline:none}
+.feel{display:grid;grid-template-columns:repeat(4,1fr);background:var(--line);border-radius:10px;padding:2px}
+.feel input{position:absolute;opacity:0;pointer-events:none}
+.feel label{text-align:center;border-radius:8px;padding:8px 2px;font-size:14px;font-weight:500;cursor:pointer}
+.feel input:checked+label{background:var(--surface);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.feel input:focus-visible+label{outline:2px solid var(--accent)}
+.result{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;padding:20px 16px}
+.result b{font-size:44px;font-weight:700;letter-spacing:-.04em;line-height:1;color:var(--c)}
+.result span{color:var(--muted);font-size:15px}
+.result p{margin:6px 0 0;font-size:15px;overflow-wrap:anywhere;max-width:100%}
+.foot{text-align:center;font-size:12px;color:var(--muted);margin:0}
+
+/* standalone shell */
+body{margin:0;padding-top:env(safe-area-inset-top,0px)}
+[hidden]{display:none!important}
+img{max-width:100%}
+.status-cover{position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:var(--bar);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);z-index:45}
+.cal{margin-top:-8px}
+</style>
+</head>
+<body>
+<div class="status-cover" aria-hidden="true"></div>
+
+<div class="wrap">
+  <section class="screen" id="home" aria-label="Home"></section>
+  <section class="screen" id="plan" aria-label="Plan" hidden></section>
+  <section class="screen" id="log" aria-label="Log" hidden></section>
+  <section class="screen" id="race" aria-label="Race" hidden></section>
+</div>
+
+<nav class="tabbar" aria-label="Tabs"><div class="tabs">
+  <button class="tab" type="button" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1h-5v-6h-5v6h-5a1 1 0 0 1-1-1z"/></svg>Home</button>
+  <button class="tab" type="button" data-tab="plan"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>Plan</button>
+  <button class="tab" type="button" data-tab="log"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m8.2 12.3 2.6 2.6 5-5.6"/></svg>Log</button>
+  <button class="tab" type="button" data-tab="race"><svg viewBox="0 0 24 24"><path d="M5.5 21V4M5.5 4.5c4-2 6.5 2 11 0v8.5c-4.5 2-7-2-11 0"/></svg>Race</button>
+</div></nav>
+
+<div class="sheet-wrap" id="sheet-wrap" aria-hidden="true">
+  <div class="scrim" data-close></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-title"></div>
+</div>
+
+<script>
+const RACE='2026-10-25';
+const COLOR={easy:'var(--easy)',int:'var(--int)',tempo:'var(--tempo)',long:'var(--long)',race:'var(--race)'};
+/* item: d=distance/duration, m=easy|pace|rest, pace, cap (easy upper limit), s=extra note */
+const PLAN=[
+ {id:'w4-thu',week:4,date:'2026-10-08',title:'400m Repeats',type:'int',label:'Intervals',km:5.4,dur:'30–40 min',flow:['1.6k easy','6 × 400m','1.4k easy'],k:1,
+  steps:[{n:'Warm-up',it:[{d:'1.6 km',m:'easy',cap:'5:40'},{d:'90 s',m:'rest'}]},{n:'Repeat × 6',k:1,it:[{d:'400 m',m:'pace',pace:'4:10',s:'Treadmill range 14.1–14.7 kph'},{d:'60 s',m:'rest'}]},{n:'Cool-down',it:[{d:'1.4 km',m:'easy',s:'Or slower'}]}],
+  tip:'Make the first 400 m a strong effort, then match that feel on every rep.'},
+ {id:'w4-sun',week:4,date:'2026-10-11',title:'10km Long Run',type:'long',label:'Long run',km:10,dur:'55–60 min',flow:['10k easy'],k:0,
+  steps:[{n:'Session',k:1,it:[{d:'10 km',m:'easy',s:'Relaxed the whole way'}]}],tip:'The longest run of the plan. Relax and just get the distance done.'},
+ {id:'w5-tue',week:5,date:'2026-10-13',title:'5km Easy Run',type:'easy',label:'Easy',km:5,dur:'25–30 min',flow:['5k easy'],k:0,
+  steps:[{n:'Session',k:1,it:[{d:'5 km',m:'easy',cap:'5:40'}]}],tip:'The pace cap is a limit, not a target. Run whatever feels truly easy.'},
+ {id:'w5-thu',week:5,date:'2026-10-15',title:'On Off Ks',type:'tempo',label:'Tempo',km:5,dur:'25–30 min',flow:['500m easy','2 × (1k @ 5:15 + 1k @ 4:40)','500m easy'],k:1,
+  steps:[{n:'Warm-up',it:[{d:'500 m',m:'easy',cap:'5:40'}]},{n:'Repeat × 2',k:1,it:[{d:'1 km',m:'pace',pace:'5:15'},{d:'1 km',m:'pace',pace:'4:40'}]},{n:'Recover',it:[{d:'90 s',m:'rest'}]},{n:'Cool-down',it:[{d:'500 m',m:'easy',s:'Then walk 5–10 min'}]}],
+  tip:'The 4:40 kms are race pace. Notice how they feel.'},
+ {id:'w5-sun',week:5,date:'2026-10-18',title:'6.5km Block Long Run',type:'long',label:'Long run',km:6.5,dur:'35–40 min',flow:['3.5k easy','3k @ 5:20'],k:1,
+  steps:[{n:'Block 1',it:[{d:'3.5 km',m:'easy'}]},{n:'Block 2',k:1,it:[{d:'3 km',m:'pace',pace:'5:20'}]}]},
+ {id:'w6-tue',week:6,date:'2026-10-20',title:'5km Easy Run',type:'easy',label:'Easy',km:5,dur:'25–30 min',flow:['5k easy'],k:0,
+  steps:[{n:'Session',k:1,it:[{d:'5 km',m:'easy',cap:'5:40'}]}],tip:'The pace cap is a limit, not a target. Run whatever feels truly easy.'},
+ {id:'w6-thu',week:6,date:'2026-10-22',title:'Taper 400s',type:'int',label:'Taper intervals',km:5,dur:'30–40 min',flow:['2k easy','5 × 400m','1k easy'],k:1,
+  steps:[{n:'Warm-up',it:[{d:'2 km',m:'easy',cap:'5:40'},{d:'60 s',m:'rest'}]},{n:'Repeat × 5',k:1,it:[{d:'400 m',m:'pace',pace:'4:40',s:'A touch quicker than race pace'},{d:'90 s',m:'rest'}]},{n:'Cool-down',it:[{d:'1 km',m:'easy',s:'Or slower'}]}],
+  tip:'A bit of speed to prime the legs. Controlled, not flat out.'},
+ {id:'w6-race',week:6,date:RACE,title:'Tenby 10K',type:'race',label:'Race',km:10,dur:'46:40–48:20',flow:['10k @ 4:40–4:50'],k:0,race:1,
+  steps:[{n:'Race',k:1,it:[{d:'10 km',m:'pace',pace:'4:45',s:'Range 4:40–4:50/km'}]}],tip:'Settle into 4:45s early. If you feel good after 7 km, push towards 4:40.'},
+];
+const PLAN_KM=PLAN.reduce((a,w)=>a+w.km,0);
+const WEEKS={4:'Week 4',5:'Week 5',6:'Race week'};
+const byId=id=>PLAN.find(w=>w.id===id);
+
+/* ---------- state ---------- */
+const LS='tenby10k.v1';
+let state={done:{},extras:[]};
+try{const s=localStorage.getItem(LS);if(s){const p=JSON.parse(s);state={done:p.done||{},extras:p.extras||[]};}}catch(e){}
+const WEEK1='2026-10-05';
+let tread=false,tab='home',splitPace=285,selDate=null;
+try{tread=localStorage.getItem('tenby10k.tread')==='1';tab=localStorage.getItem('tenby10k.tab')||'home';}catch(e){}
+const h=(location.hash||'').slice(1);if(['home','plan','log','race'].includes(h))tab=h;
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}}
+let dbRef=null,writing=false,pending=false,syncMsg='Saved on this device';
+const setSync=t=>{syncMsg=t;const el=document.getElementById('sync');if(el)el.textContent=t;};
+async function push(){
+  if(!dbRef)return;
+  if(writing){pending=true;return;}
+  writing=true;
+  try{await dbRef.set({done:state.done,extras:state.extras,updatedAt:new Date().toISOString()});setSync('Synced to your Claude account');}
+  catch(e){setSync('Saved on this device');}
+  writing=false;if(pending){pending=false;push();}
+}
+function commit(){saveLocal();render();push();}
+async function initDb(){
+  try{
+    if(!window.claude||!window.claude.use)return;
+    const db=await window.claude.use('db');if(!db)return;
+    const user=await window.claude.use('user');const uid=user?await user.id():null;if(!uid)return;
+    dbRef=db.doc('data/users/'+uid+'/tracker');
+    let first=true;
+    dbRef.onSnapshot(snap=>{
+      const local=Object.keys(state.done).length||state.extras.length;
+      if(snap.exists){
+        const d=snap.data();
+        const inc={done:JSON.parse(JSON.stringify(d.done||{})),extras:JSON.parse(JSON.stringify(d.extras||[]))};
+        const empty=!Object.keys(inc.done).length&&!inc.extras.length;
+        if(JSON.stringify(inc)!==JSON.stringify(state)){if(first&&empty&&local)push();else{state=inc;saveLocal();render();}}
+      }else if(first&&local)push();
+      first=false;setSync('Synced to your Claude account');
+    },()=>setSync('Saved on this device'));
+  }catch(e){}
+}
+
+/* ---------- helpers ---------- */
+const D=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+const today=()=>{const n=new Date();return new Date(n.getFullYear(),n.getMonth(),n.getDate());};
+const diff=s=>Math.round((D(s)-today())/864e5);
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const fmt=(s,o={weekday:'short',day:'numeric',month:'short'})=>D(s).toLocaleDateString('en-GB',o);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const kph=p=>{const[m,s]=p.split(':').map(Number);return (60/(m+s/60)).toFixed(1);};
+const sp=p=>tread?kph(p)+' kph':p+'/km';
+function secs(t){if(!t)return null;const p=t.trim().split(':').map(Number);if(p.some(isNaN)||p.length>3)return null;return p.reduce((a,v)=>a*60+v,0)||null;}
+function clock(s){s=Math.round(s);const hh=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(hh?hh+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0');}
+const km1=n=>(Math.round(n*10)/10).toString();
+const rel=n=>n===0?'Today':n===1?'Tomorrow':n>1?'In '+n+' days':'Missed';
+const CHECK='<svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+const title=(sm,big)=>`<header class="title"><small>${sm}</small><h1>${big}</h1></header>`;
+
+/* ---------- screens ---------- */
+function render(){
+  document.querySelectorAll('.screen').forEach(s=>s.hidden=s.id!==tab);
+  document.querySelectorAll('.tab').forEach(b=>{if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+  ({home:renderHome,plan:renderPlan,log:renderLog,race:renderRace})[tab]();
+}
+
+function renderHome(){
+  const done=PLAN.filter(w=>state.done[w.id]).length,dr=diff(RACE);
+  const wkIdx=Math.min(2,Math.max(0,Math.floor((D(selDate)-D(WEEK1))/(7*864e5))));
+  const mon=D(WEEK1);mon.setDate(mon.getDate()+wkIdx*7);
+  const days=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return iso(d);});
+  const tIso=iso(today());
+  const strip=days.map(ds=>{
+    const w=PLAN.find(x=>x.date===ds),dn=w&&state.done[w.id];
+    return `<button class="sd${ds===tIso?' today':''}${ds===selDate?' sel':''}${w?' has':''}${dn?' done':''}" type="button" data-day="${ds}" aria-pressed="${ds===selDate}" aria-label="${fmt(ds,{weekday:'long',day:'numeric',month:'long'})}${w?', '+esc(w.title):''}" style="${w?'--c:'+COLOR[w.type]:''}"><small>${fmt(ds,{weekday:'short'}).slice(0,3)}</small><b class="num">${D(ds).getDate()}</b><i>${dn?'✓':''}</i></button>`;
+  }).join('');
+  const sel=PLAN.find(w=>w.date===selDate);
+  const next=PLAN.find(w=>!state.done[w.id]&&w.date>selDate&&diff(w.date)>=0)||PLAN.find(w=>!state.done[w.id]&&w.date>selDate);
+  const card=w=>`<button class="card next" type="button" data-open="${w.id}" style="--c:${COLOR[w.type]}">
+        <span class="pill">${w.label}${state.done[w.id]?' · Done ✓':''}</span>
+        <span class="h">${esc(w.title)}</span>
+        <span class="meta num">${km1(w.km)} km · ${w.dur}</span>
+        <span class="flow">${w.flow.map((f,i)=>`<span class="${(w.k&&i===1)||w.flow.length===1?'k':''}">${esc(f)}</span>`).join('')}</span>
+        <span class="next-go">${state.done[w.id]?'View log':'View session'}</span></button>`;
+  const selN=diff(selDate);
+  const dayLabel=selN===0?'Today':selN===1?'Tomorrow':selN===-1?'Yesterday':fmt(selDate,{weekday:'long'});
+  document.getElementById('home').innerHTML=`
+    <div class="cal">
+      <div class="cal-h">
+        <button class="nav-b" type="button" data-week="-1" aria-label="Previous week" ${wkIdx===0?'disabled':''}><svg viewBox="0 0 12 12"><path d="M7.5 2 3.5 6l4 4"/></svg></button>
+        <div class="cal-t"><strong>Week ${wkIdx+4} of 6</strong><small class="num">${fmt(days[0],{day:'numeric',month:'short'})} – ${fmt(days[6],{day:'numeric',month:'short'})}</small></div>
+        <button class="nav-b" type="button" data-week="1" aria-label="Next week" ${wkIdx===2?'disabled':''}><svg viewBox="0 0 12 12"><path d="M4.5 2l4 4-4 4"/></svg></button>
+      </div>
+      <div class="strip">${strip}</div>
+    </div>
+    <div class="sec"><div class="sec-h"><span>${dayLabel}</span><span class="num">${fmt(selDate,{day:'numeric',month:'long'})}</span></div>
+      ${sel?card(sel):`<div class="card rest"><strong>Rest day</strong><span>Nothing planned. Recover, stretch, or log an extra run.</span>
+        ${next?`<button class="rest-next" type="button" data-day="${next.date}" style="--c:${COLOR[next.type]}"><i class="dot"></i>Next: ${esc(next.title)} · ${fmt(next.date,{weekday:'short',day:'numeric'})}<span aria-hidden="true">›</span></button>`:''}</div>`}
+    </div>
+    <div class="count">
+      <div class="count-top">
+        <div class="count-n"><b class="num">${dr>0?dr:dr===0?'0':'✓'}</b><span>${dr>1?'days to go':dr===1?'day to go':dr===0?'Race day':'Race done'}</span></div>
+        <p>Tenby 10K<strong class="num">Sun 25 Oct</strong></p>
+      </div>
+      <div class="prog"><div class="prog-bar"><i style="width:${done/PLAN.length*100}%"></i></div>
+      <div class="prog-l num"><span>${done} of ${PLAN.length} sessions</span><span>Target 46:40–48:20</span></div></div>
+    </div>`;
+}
+
+function renderPlan(){
+  const left=PLAN.filter(w=>!state.done[w.id]).length;
+  document.getElementById('plan').innerHTML=title('Runna · 6-week plan','Plan')+
+    [...new Set(PLAN.map(w=>w.week))].map(wk=>{
+      const ws=PLAN.filter(w=>w.week===wk);
+      return `<div class="sec"><div class="sec-h"><span>${WEEKS[wk]}</span><span class="num">${km1(ws.reduce((a,w)=>a+w.km,0))} km</span></div><div class="list">${ws.map(row).join('')}</div></div>`;
+    }).join('')+`<p class="foot num">${left} session${left===1?'':'s'} to go · tap the circle to tick one off</p>`;
+}
+function row(w){
+  const log=state.done[w.id],n=diff(w.date);
+  return `<div class="row${log?' done':''}${n===0?' today':''}" style="--c:${COLOR[w.type]}">
+    <div class="date" data-open="${w.id}"><small>${fmt(w.date,{weekday:'short'})}</small><b class="num">${D(w.date).getDate()}</b></div>
+    <div class="rm" data-open="${w.id}" role="button" tabindex="0"><strong>${esc(w.title)}</strong><span><i class="dot"></i>${km1(w.km)} km${!log&&n<0?' · <em class="miss">Missed</em>':log&&log.time?' · '+esc(log.time):''}</span></div>
+    <button class="check" type="button" data-check="${w.id}" aria-label="${log?'View log for':'Mark done:'} ${esc(w.title)}">${CHECK}</button></div>`;
+}
+
+function renderLog(){
+  const plan=PLAN.filter(w=>state.done[w.id]).map(w=>({kind:'plan',id:w.id,date:w.date,title:w.title,km:w.km,time:state.done[w.id].time,c:COLOR[w.type]}));
+  const ex=state.extras.map(x=>({kind:'extra',id:x.id,date:x.date,title:x.title||'Run',km:Number(x.km)||0,time:x.time,c:'var(--muted)'}));
+  const all=[...plan,...ex].sort((a,b)=>a.date<b.date?1:-1);
+  const km=all.reduce((a,r)=>a+r.km,0);
+  const timed=all.filter(r=>secs(r.time)&&r.km);
+  const avg=timed.length?clock(timed.reduce((a,r)=>a+secs(r.time),0)/timed.reduce((a,r)=>a+r.km,0))+'':'–';
+  document.getElementById('log').innerHTML=title('Your training','Log')+`
+    <div class="stats num"><div class="stat"><b>${all.length}</b><small>Runs</small></div><div class="stat"><b>${km1(km)}</b><small>Km</small></div><div class="stat"><b>${avg}</b><small>Avg /km</small></div></div>
+    <div class="sec"><div class="sec-h"><span>History</span></div><div class="list">${all.length?all.map(r=>`
+      <div class="row" style="--c:${r.c}"><div class="date" data-${r.kind==='plan'?'open':'extra'}="${r.id}"><small>${fmt(r.date,{weekday:'short'})}</small><b class="num">${D(r.date).getDate()}</b></div>
+      <div class="rm" data-${r.kind==='plan'?'open':'extra'}="${r.id}" role="button" tabindex="0"><strong>${esc(r.title)}</strong><span><i class="dot"></i>${r.kind==='plan'?'Plan':'Extra'}${r.km?' · '+km1(r.km)+' km':''}</span></div>
+      <span class="val num">${r.time?esc(r.time):''}</span></div>`).join(''):'<div class="empty">No runs logged yet.<br>Tick off a session in Plan, or add an extra run.</div>'}</div></div>
+    <button class="btn soft" type="button" data-add>Log an extra run</button>
+    <p class="foot" id="sync">${syncMsg}</p>`;
+}
+
+function renderRace(){
+  const r=byId('w6-race'),log=state.done[r.id],dr=diff(RACE);
+  const s=log&&secs(log.time);
+  document.getElementById('race').innerHTML=title('Sunday 25 October','Race')+`
+    <div class="race-hero"><div><h2>Tenby 10K</h2><p>${dr>0?dr+' day'+(dr===1?'':'s')+' to go':dr===0?'It’s race day':log?'Finished':'Race day has passed'}</p></div>
+      <div class="kv num"><div><small>Target time</small><b>46:40–48:20</b></div><div><small>Race pace</small><b>4:40–4:50</b></div>
+      <div><small>${s?'Your time':'Goal'}</small><b>${s?clock(s):'47:30'}</b></div><div><small>${s?'Your pace':'Treadmill equiv.'}</small><b>${s?clock(s/10)+'/km':kph('4:45')+' kph'}</b></div></div></div>
+    <div class="sec"><div class="sec-h"><span>Km splits</span></div>
+      <div class="seg" role="group" aria-label="Split pace">${[280,285,290].map(p=>`<button type="button" data-split="${p}" aria-pressed="${splitPace===p}">${clock(p)}/km</button>`).join('')}</div>
+      <div class="list splits num">${[1,2,3,4,5,6,7,8,9,10].map(k=>`<div><small>${k}K</small><b>${clock(splitPace*k)}</b></div>`).join('')}</div></div>
+    <div class="sec"><div class="sec-h"><span>Race plan</span></div><ul class="list tips">
+      <li>Settle into 4:45s for the first 2 km. Don’t chase the start.</li>
+      <li>Hold steady through halfway at around ${clock(splitPace*5)}.</li>
+      <li>Feeling good after 7 km? Squeeze towards 4:40.</li></ul></div>
+    <button class="btn" type="button" data-open="${r.id}" style="background:var(--race);color:#fff">${log?'View race result':'Log race result'}</button>`;
+}
+
+/* ---------- sheet ---------- */
+const wrap=document.getElementById('sheet-wrap'),sheet=document.getElementById('sheet');
+let current=null,lastFocus=null;
+const X='<button class="x" type="button" data-close aria-label="Close"><svg viewBox="0 0 12 12"><path d="M1 1l10 10M11 1 1 11"/></svg></button>';
+function openSheet(html,c){
+  sheet.style.setProperty('--c',c||'var(--ink)');
+  sheet.innerHTML='<div class="grab"></div>'+html;
+  if(!wrap.classList.contains('open')){lastFocus=document.activeElement;wrap.classList.add('open');wrap.setAttribute('aria-hidden','false');document.documentElement.style.overflow='hidden';sheet.scrollTop=0;}
+  setTimeout(()=>{const x=sheet.querySelector('.x');x&&x.focus({preventScroll:true});},50);
+}
+function closeSheet(){wrap.classList.remove('open');wrap.setAttribute('aria-hidden','true');document.documentElement.style.overflow='';current=null;lastFocus&&lastFocus.focus&&lastFocus.focus({preventScroll:true});}
+
+function sessionSheet(id){
+  current=id;const w=byId(id),log=state.done[id],n=diff(w.date);
+  const steps=w.steps.map(p=>`<div class="ph${p.k?' k':''}"><span class="ph-n">${p.n}</span>${p.it.map(it=>{
+    let main,sub=[];
+    if(it.m==='rest')main=it.d+' walk';
+    else if(it.m==='pace')main=`${it.d} at <span class="num">${sp(it.pace)}</span>`;
+    else{main=it.d+' easy';if(it.cap)sub.push('No faster than '+sp(it.cap));}
+    if(it.s)sub.push(esc(it.s));
+    return `<div class="it${it.m==='rest'?' rest':''}"><strong>${main}</strong>${sub.length?`<small>${sub.join(' · ')}</small>`:''}</div>`;}).join('')}</div>`).join('');
+  let foot;
+  if(log){
+    const s=secs(log.time),pace=s?clock(s/w.km)+'/km':'';
+    const vs=w.race&&s?(s<=2900?' · inside target':' · outside target'):'';
+    foot=`<div class="card result"><span>Logged ${fmt(log.at.slice(0,10))}</span><b class="num">${log.time?esc(log.time):'Done'}</b><span class="num">${[pace&&pace+' avg',log.feel&&'Felt '+log.feel.toLowerCase()].filter(Boolean).join(' · ')}${vs}</span>${log.note?`<p>${esc(log.note)}</p>`:''}<button class="btn ghost" type="button" data-undo="${id}">Undo</button></div>`;
+  }else{
+    foot=`<form class="form" data-log="${id}">
+      <div class="list"><div class="inp"><label for="t-${id}">Time</label><input type="text" id="t-${id}" placeholder="${w.race?'47:30':'Optional'}" maxlength="8" autocomplete="off"></div>
+      <div class="inp"><label for="n-${id}">Note</label><input type="text" id="n-${id}" placeholder="Optional" maxlength="200" autocomplete="off"></div></div>
+      <div class="feel" role="group" aria-label="How it felt">${['Easy','Steady','Hard','Max'].map(f=>`<input type="radio" name="feel" id="fe-${f}" value="${f}"><label for="fe-${f}">${f}</label>`).join('')}</div>
+      <button class="btn c" type="submit">Mark as done</button></form>`;
+  }
+  const hasPace=w.steps.some(p=>p.it.some(i=>i.pace||i.cap));
+  openSheet(`<div class="sh-top"><div><span class="pill">${w.label} · ${fmt(w.date)}${!log&&n>=0?' · '+rel(n):''}</span><h2 id="sh-title">${esc(w.title)}</h2><p class="num">${km1(w.km)} km · ${w.dur}</p></div>${X}</div>
+    ${hasPace?`<div class="seg" style="grid-template-columns:1fr 1fr" role="group" aria-label="Pace units"><button type="button" data-tread="0" aria-pressed="${!tread}">Outdoor</button><button type="button" data-tread="1" aria-pressed="${tread}">Treadmill</button></div>`:''}
+    <div class="list">${steps}</div>${w.tip?`<div class="list"><p class="tip">${esc(w.tip)}</p></div>`:''}${foot}`,COLOR[w.type]);
+}
+function extraSheet(id){
+  current='extra';const x=id?state.extras.find(e=>e.id===id):null;
+  if(x){
+    const s=secs(x.time);
+    return openSheet(`<div class="sh-top"><div><span class="pill" style="--c:var(--muted)">Extra run · ${fmt(x.date)}</span><h2 id="sh-title">${esc(x.title||'Run')}</h2><p class="num">${[x.km&&km1(x.km)+' km',x.time&&esc(x.time),s&&x.km&&clock(s/x.km)+'/km avg'].filter(Boolean).join(' · ')}</p></div>${X}</div>
+      <button class="btn ghost" type="button" data-del="${x.id}">Delete this run</button>`);
+  }
+  openSheet(`<div class="sh-top"><div><h2 id="sh-title">Extra run</h2><p>Anything outside the plan</p></div>${X}</div>
+    <form class="form" data-extra-form><div class="list">
+      <div class="inp"><label for="x-title">Run</label><input type="text" id="x-title" placeholder="Easy run" maxlength="60" autocomplete="off"></div>
+      <div class="inp"><label for="x-date">Date</label><input type="date" id="x-date" value="${iso(today())}" required></div>
+      <div class="inp"><label for="x-km">Distance</label><input type="number" id="x-km" step="0.1" min="0" inputmode="decimal" placeholder="km"></div>
+      <div class="inp"><label for="x-time">Time</label><input type="text" id="x-time" placeholder="mm:ss" maxlength="8" autocomplete="off"></div></div>
+      <button class="btn" type="submit">Save run</button></form>`,'var(--accent)');
+}
+
+/* ---------- events ---------- */
+function go(t){tab=t;try{localStorage.setItem('tenby10k.tab',t);}catch(_){}render();window.scrollTo(0,0);}
+document.addEventListener('click',e=>{
+  const t=e.target;let el;
+  if(t.closest('[data-close]'))return closeSheet();
+  if(el=t.closest('[data-tab]'))return go(el.dataset.tab);
+  if(el=t.closest('[data-check]')){const id=el.dataset.check;if(state.done[id])return sessionSheet(id);state.done[id]={at:new Date().toISOString(),time:'',feel:'',note:''};return commit();}
+  if(el=t.closest('[data-day]')){selDate=el.dataset.day;return render();}
+  if(el=t.closest('[data-week]')){const d=D(selDate);d.setDate(d.getDate()+7*(+el.dataset.week));let n=iso(d);if(n<WEEK1)n=WEEK1;const end=iso(new Date(D(RACE).getTime()));if(n>end)n=end;selDate=n;return render();}
+  if(el=t.closest('[data-open]'))return sessionSheet(el.dataset.open);
+  if(el=t.closest('[data-split]')){splitPace=+el.dataset.split;return render();}
+  if(el=t.closest('[data-tread]')){tread=el.dataset.tread==='1';try{localStorage.setItem('tenby10k.tread',tread?'1':'0');}catch(_){}const s=sheet.scrollTop;sessionSheet(current);sheet.scrollTop=s;return;}
+  if(el=t.closest('[data-undo]')){delete state.done[el.dataset.undo];commit();return sessionSheet(el.dataset.undo);}
+  if(t.closest('[data-add]'))return extraSheet();
+  if(el=t.closest('[data-extra]'))return extraSheet(el.dataset.extra);
+  if(el=t.closest('[data-del]')){
+    if(el.dataset.armed){state.extras=state.extras.filter(x=>x.id!==el.dataset.del);commit();return closeSheet();}
+    el.dataset.armed='1';el.textContent='Tap again to delete';el.style.color='var(--race)';
+  }
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&wrap.classList.contains('open'))closeSheet();
+  if((e.key==='Enter'||e.key===' ')&&e.target.matches('.rm[role=button]')){e.preventDefault();e.target.click();}
+});
+document.addEventListener('submit',e=>{
+  e.preventDefault();const f=e.target;
+  if(f.dataset.log){
+    const id=f.dataset.log;
+    state.done[id]={at:new Date().toISOString(),time:document.getElementById('t-'+id).value.trim(),feel:(f.querySelector('input[name=feel]:checked')||{}).value||'',note:document.getElementById('n-'+id).value.trim()};
+    commit();return sessionSheet(id);
+  }
+  if(f.hasAttribute('data-extra-form')){
+    const km=parseFloat(document.getElementById('x-km').value)||0,time=document.getElementById('x-time').value.trim();
+    if(!km&&!time)return document.getElementById('x-km').focus();
+    state.extras.push({id:'x'+Date.now().toString(36),date:document.getElementById('x-date').value||iso(today()),title:document.getElementById('x-title').value.trim()||'Easy run',km,time});
+    commit();closeSheet();
+  }
+});
+
+{const t=iso(today());selDate=(t>=WEEK1&&t<=RACE)?t:(t<WEEK1?PLAN[0].date:RACE);}
+render();
+initDb();
+</script>
+
+</body>
+</html>
