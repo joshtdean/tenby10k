@@ -390,7 +390,7 @@ function renderLog(){
       <div class="rm" data-${r.kind==='plan'?'open':'extra'}="${r.id}" role="button" tabindex="0"><strong>${esc(r.title)}</strong><span><i class="dot"></i>${r.kind==='plan'?'Plan':'Extra'}${r.km?' · '+km1(r.km)+' km':''}</span></div>
       <span class="val num">${r.time?esc(r.time):''}</span></div>`).join(''):'<div class="empty">No runs logged yet.<br>Tick off a session in Plan, or add an extra run.</div>'}</div></div>
     <button class="btn soft" type="button" data-add>Log an extra run</button>
-    <p class="foot" id="sync">${syncMsg}</p><p class="foot">Version 3 · haptics</p>`;
+    <p class="foot" id="sync">${syncMsg}</p><p class="foot">Version 4 · haptics</p>`;
 }
 
 function renderRace(){
@@ -470,10 +470,10 @@ function extraSheet(id){
 function haptic(){
   try{
     if(navigator.vibrate&&navigator.vibrate(12))return;
-    const l=document.createElement('label');l.className='haptic-sw';l.setAttribute('aria-hidden','true');
-    l.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden';
-    const i=document.createElement('input');i.type='checkbox';i.setAttribute('switch','');i.tabIndex=-1;
-    l.appendChild(i);document.body.appendChild(l);l.click();l.remove();
+    // Same pattern as the ios-haptics library: a hidden label wrapping a native switch, clicked during the tap.
+    const l=document.createElement('label');l.className='haptic-sw';l.ariaHidden='true';l.style.display='none';
+    const i=document.createElement('input');i.type='checkbox';i.setAttribute('switch','');
+    l.appendChild(i);document.head.appendChild(l);l.click();document.head.removeChild(l);
   }catch(_){}
 }
 /* ---------- events ---------- */
